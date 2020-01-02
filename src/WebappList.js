@@ -48,14 +48,16 @@ export class WebappList extends LitElement {
 
   static get properties() {
     return {
+      _focusIndex: { type:Number, attribute:false }
     };
   }
 
   constructor() {
     super();
     this._items = new ItemCollection();
-    //this.onKeyPress = this.onKeyPress.bind(this);
+    this._focusIndex = 0;
   }
+
 
   set items(values) {
     this._items.set(values);
@@ -65,22 +67,51 @@ export class WebappList extends LitElement {
   onKeyDown(event) {
     switch(event.key) {
       case 'ArrowDown':
-        this.setFocusOn(this._items.focusIndex + 1);
+        if(event.shiftKey)
+          this.toggleSelection(this._focusIndex + 1);
+        this.setFocusOn(this._focusIndex + 1);
         break;
       case 'ArrowUp': 
-        this.setFocusOn(this._items.focusIndex - 1);
+        if(event.shiftKey)
+          this.toggleSelection(this._focusIndex - 1);
+        this.setFocusOn(this._focusIndex - 1);
         break;
-      case /*Space*/ ' ' : {
-          const index = this._items.focusIndex;
-          this.toggleSelection(index);
+      case 'Home':
+        if(event.ctrlKey && event.shiftKey)
+          this.extendSelectionTo(0);
+        break;
+      case 'End':
+        if(event.ctrlKey && event.shiftKey)
+          this.extendSelectionTo(this._items.lastIndex);
+        break;
+      case /*Space*/ ' ' : 
+        if(event.shiftKey)
+          this.extendSelectionTo(this._focusIndex);
+        else
+          this.toggleSelection(this._focusIndex);
+        break;
+      case 'a':
+      case 'A':
+        if(event.ctrlKey) {
+          this.selectAll();
+          event.preventDefault();
           break;
         }
     }
   }
 
   toggleSelection(index) {
-    const selected = this._items.isSelected(index);
-    this._items.select(index, !selected);
+    index = this._items.clampIndex(index);
+    const selected = !this._items.isSelected(index);
+    this._items.select(index, selected);
+    if(selected)
+      this._lastSelectedIndex = index;
+    this.requestUpdate();
+  }
+
+  selectAll() {
+    for(const item of this._items)
+      item.selected = true;
     this.requestUpdate();
   }
 
@@ -88,51 +119,74 @@ export class WebappList extends LitElement {
     for(const item of this._items)
       item.selected = false;
     this._items.select(index, true);
+    this._lastSelectedIndex = index;
+    this.requestUpdate();
+  }
+
+  /** 
+   * Selects of the items between index and the last
+   * selected index.
+   */
+  extendSelectionTo(index) {
+    let start, end;
+    if(index < this._lastSelectedIndex) {
+      start = index;
+      end = this._lastSelectedIndex;
+    } else {
+      start = this._lastSelectedIndex + 1;
+      end = index + 1;
+    }
+
+    for(let i = start; i < end; i++)
+      this._items.select(i, true);
+
+    this._lastSelectedIndex = index;
     this.requestUpdate();
   }
 
   onItemClick(event) {
-    const index = event.currentTarget.getAttribute('data-index');
+    let index = event.currentTarget.getAttribute('data-index');
+    index = Number.parseInt(index);
 
     if(event.ctrlKey) {
       this.toggleSelection(index);
+    } else if(event.shiftKey) {
+      this.extendSelectionTo(index);
+      document.getSelection().removeAllRanges();
     } else {
       this.selectOne(index);
     }
 
-    this.requestUpdate();
+    this._lastSelectedIndex = index;
+    this.setFocusOn(index);
   }
 
   setFocusOn(index) {
-    if(index === this._items.focusIndex)
+    index = this._items.clampIndex(index);
+    if(index === this._focusIndex)
       return;
 
-    this._items.focusIndex = index;
-    index = this._items.focusIndex;
+    this._focusIndex = index;
 
-    const tabStop = this.shadowRoot.querySelectorAll('[tabindex="0"]');
-    for(const t of tabStop)
-      t.setAttribute('tabindex', '-1');
-
-    const newTabStop = this.shadowRoot.querySelector(`[id="${this._items.idForIndex(index)}"]`);
-    newTabStop.setAttribute('tabindex', '0');
-    newTabStop.focus();
+    this.updateComplete.then(() => {
+      const newTabStop = this.shadowRoot.querySelector(`[id="${this._items.idForIndex(index)}"]`);
+      newTabStop.focus();
+    });
   }
 
   render() {
     return html`
-      <h2>${this.title}</h2>
       <ul @keydown=${this.onKeyDown}>
         ${repeat(this._items, (item) => item.id, (item, index) => html`
           <li
             @click=${this.onItemClick}
-            tabindex=${index === this._items.focusIndex ? '0' : '-1'}
-            ?inert=${index !== this._items.focusIndex ? '0' : '-1'}
+            tabindex=${index === this._focusIndex ? '0' : '-1'}
             data-index="${index}"
             id=${item.id}
             aria-selected="${item.selected}">
               ${index}: ${item.data.label}
               <button>Action</button>
+              <button>Action 2</button>
           </li>`
         )}
       </ul>

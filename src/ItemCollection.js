@@ -7,8 +7,6 @@ function exists(id) {
 export default class ItemCollection {
   constructor() {
     this._items = [];
-    this._focusIndex = 0;
-    this._lastSelectedIndex = -1;
     this._nextId = 0;
   }
 
@@ -23,14 +21,6 @@ export default class ItemCollection {
     return `wal-id-${++this._nextId}`;
   }
 
-  get focusIndex() {
-    return this._focusIndex || 0;
-  }
-
-  set focusIndex(index) {
-    this._focusIndex = this.clampIndex(index);
-  }
-
   isSelected(index) {
     return this._items[index].selected;
   }
@@ -41,14 +31,14 @@ export default class ItemCollection {
 
   clampIndex(index) {
     if(index >= this._items.length)
-      return this._items.length - 1;
+      return this.lastIndex;
     if(index < 0)
       return 0;
     return index;
   }
 
-  get lastSelectedIndex() {
-    return this._lastSelectedIndex;
+  get lastIndex() {
+    return this._items.length-1;
   }
 
   idForIndex(index) {
