@@ -1,8 +1,8 @@
-export default class Item {
+export default class Item  {
   constructor(data) {
     this.data = data;
     this.id = null;
     this.selected = false;
+    this.focused = false;
   }
-
 }

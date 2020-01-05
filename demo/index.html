@@ -29,7 +29,10 @@
       html`
         <wal-list 
           .title=${title} 
-          .items=${window.items}>
+          .data=${window.items}>
+          <template>
+              <wal-item><wal-item>
+          </template>
         </wal-list>
       `,
       document.querySelector('#demo')

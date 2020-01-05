@@ -1,7 +1,7 @@
 import { html, css, LitElement } from 'lit-element';
 import { repeat } from 'lit-html/directives/repeat.js';
 
-import ItemCollection from './ItemCollection';
+import Item from './Item';
 
 export default class List extends LitElement {
   static get styles() {
@@ -54,15 +54,27 @@ export default class List extends LitElement {
 
   constructor() {
     super();
-    this._items = new ItemCollection();
+    this._items = [];
     this._focusIndex = 0;
+    this._nextId = 0;
   }
 
-
-  set items(values) {
-    this._items.set(values);
+  set data(values) {
+    if(!Array.isArray(values))
+      values = Array.from(values);
+      
+    this._items = values.map(data => new Item(data));
+    for(const item of this._items) {
+        item.id = exists(item.data.id) ?  item.data.id : `item-${++this._nextId}`;
+    }
   }
 
+  dataBinder(item, index) {
+    return html`
+    ${index}: ${item.data.label}
+    <button>Action</button>
+    <button>Action 2</button>`;
+  }
 
   onKeyDown(event) {
     switch(event.key) {
@@ -101,9 +113,9 @@ export default class List extends LitElement {
   }
 
   toggleSelection(index) {
-    index = this._items.clampIndex(index);
-    const selected = !this._items.isSelected(index);
-    this._items.select(index, selected);
+    index = this.clampIndex(index);
+    const selected = !this._items[index].selected;
+    this._items[index].selected = selected;
     if(selected)
       this._lastSelectedIndex = index;
     this.requestUpdate();
@@ -116,9 +128,11 @@ export default class List extends LitElement {
   }
 
   selectOne(index) {
+    index = this.clampIndex(index);
     for(const item of this._items)
       item.selected = false;
-    this._items.select(index, true);
+
+    this._items[index].selected = true;
     this._lastSelectedIndex = index;
     this.requestUpdate();
   }
@@ -138,7 +152,7 @@ export default class List extends LitElement {
     }
 
     for(let i = start; i < end; i++)
-      this._items.select(i, true);
+      this._items[i].selected = true;
 
     this._lastSelectedIndex = index;
     this.requestUpdate();
@@ -162,16 +176,26 @@ export default class List extends LitElement {
   }
 
   setFocusOn(index) {
-    index = this._items.clampIndex(index);
+    index = this.clampIndex(index);
     if(index === this._focusIndex)
       return;
 
+    this._items[this._focusIndex].focused = false;
+    this._items[index].focused = true;
     this._focusIndex = index;
 
     this.updateComplete.then(() => {
-      const newTabStop = this.shadowRoot.querySelector(`[id="${this._items.idForIndex(index)}"]`);
+      const newTabStop = this.shadowRoot.querySelector(`[id="${this._items[index].id}"]`);
       newTabStop.focus();
     });
+  }
+
+  clampIndex(index) {
+    if(index >= this._items.length)
+      return this.lastIndex;
+    if(index < 0)
+      return 0;
+    return index;
   }
 
   render() {
@@ -184,14 +208,14 @@ export default class List extends LitElement {
             data-index="${index}"
             id=${item.id}
             aria-selected="${item.selected}">
-              ${index}: ${item.data.label}
-              <button>Action</button>
-              <button>Action 2</button>
+            ${this.dataBinder(item, index)}
           </li>`
         )}
       </ul>
     `;
   }
+}
 
-
+function exists(id) {
+  return 'undefined' !== typeof id && null !== id;
 }
