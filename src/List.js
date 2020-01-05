@@ -11,6 +11,8 @@ export default class List extends LitElement {
         --wal-list-background: #ffffff;
         --wal-hover-background: #aaffaa;
         --wal-selected-background: #8080ff;
+        --focus-color: darkorange;
+        --focus-width: 4px;
 
         display: block;
         padding: 25px;
@@ -22,14 +24,10 @@ export default class List extends LitElement {
         list-style: none;
       }
 
-      li {
-        box-sizing: border-box;
-        min-height: 3rem;
-        border-top: var(--wal-seperator-border);
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: 0.25rem 0.5rem 0.5rem;
+      li:focus {
+        outline-color: var(--focus-color);
+        outline-style: solid;
+        outline-width: var(--focus-width);
       }
 
       li:hover {
@@ -48,6 +46,7 @@ export default class List extends LitElement {
 
   static get properties() {
     return {
+      selectionMode: { type: String },
       _focusIndex: { type:Number, attribute:false }
     };
   }
@@ -57,6 +56,7 @@ export default class List extends LitElement {
     this._items = [];
     this._focusIndex = 0;
     this._nextId = 0;
+    this.selectionMode = 'single';
   }
 
   set data(values) {
@@ -69,11 +69,12 @@ export default class List extends LitElement {
     }
   }
 
-  dataBinder(item, index) {
+  dataBinder(item) {
     return html`
-    ${index}: ${item.data.label}
-    <button>Action</button>
-    <button>Action 2</button>`;
+    <wal-item 
+      label=${item.data.label}
+      ?focus=${item.focus}
+      ?selected=${item.selected}></wal-item>`;
   }
 
   onKeyDown(event) {
@@ -87,6 +88,17 @@ export default class List extends LitElement {
         if(event.shiftKey)
           this.toggleSelection(this._focusIndex - 1);
         this.setFocusOn(this._focusIndex - 1);
+        break;
+      case 'F10':
+        if(event.shiftKey) {
+          this.contextMenu(this._focusIndex);
+          event.preventDefault();
+        }
+        break;
+      case 'ContextMenu':
+      case 'ArrowRight': 
+        this.contextMenu(this._focusIndex);
+        event.preventDefault();
         break;
       case 'Home':
         if(event.ctrlKey && event.shiftKey)
@@ -107,12 +119,36 @@ export default class List extends LitElement {
         if(event.ctrlKey) {
           this.selectAll();
           event.preventDefault();
-          break;
         }
+        break;
+      case 'Enter':
+        this.activate(this._focusIndex);
+        break;
     }
   }
 
+  activate(index) {
+    const detail = {
+      index: index,
+      item: this._items[index]
+    }
+    const event = new CustomEvent('activate', { detail });
+    this.shadowRoot.querySelector('ul').children[index].firstElementChild.dispatchEvent(event);
+  }
+
+  contextMenu(index) {
+    const detail = {
+      index: index,
+      item: this._items[index]
+    }
+    const event = new CustomEvent('context-menu', { detail });
+    this.shadowRoot.querySelector('ul').children[index].firstElementChild.dispatchEvent(event);
+  }
+
   toggleSelection(index) {
+    if('none' === this.selectionMode)
+      return;
+
     index = this.clampIndex(index);
     const selected = !this._items[index].selected;
     this._items[index].selected = selected;
@@ -122,12 +158,18 @@ export default class List extends LitElement {
   }
 
   selectAll() {
+    if('multiple' !== this.selectionMode)
+      return;
+
     for(const item of this._items)
       item.selected = true;
     this.requestUpdate();
   }
 
   selectOne(index) {
+    if('none' === this.selectionMode)
+      return;
+
     index = this.clampIndex(index);
     for(const item of this._items)
       item.selected = false;
@@ -142,6 +184,12 @@ export default class List extends LitElement {
    * selected index.
    */
   extendSelectionTo(index) {
+    if('none' === this.selectionMode)
+      return;
+
+    if('single' !== this.selectionMode)
+      return this.selectOne(index);
+
     let start, end;
     if(index < this._lastSelectedIndex) {
       start = index;
@@ -159,6 +207,9 @@ export default class List extends LitElement {
   }
 
   onItemClick(event) {
+    if(event.defaultPrevented)
+      return;
+
     let index = event.currentTarget.getAttribute('data-index');
     index = Number.parseInt(index);
 
@@ -192,7 +243,7 @@ export default class List extends LitElement {
 
   clampIndex(index) {
     if(index >= this._items.length)
-      return this.lastIndex;
+      return this._items.length - 1;
     if(index < 0)
       return 0;
     return index;
