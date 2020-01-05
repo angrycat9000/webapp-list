@@ -24,11 +24,13 @@
     import { html, render } from 'lit-html';
     import '../webapp-list.js';
 
-    const title = 'Hello owc World!';
+    const title = 'Hello World!';
     render(
       html`
-        <webapp-list .title=${title} .items=${window.items}>
-        </webapp-list>
+        <wal-list 
+          .title=${title} 
+          .items=${window.items}>
+        </wal-list>
       `,
       document.querySelector('#demo')
     );

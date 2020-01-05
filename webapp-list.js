@@ -1,3 +1,3 @@
-import { WebappList } from './src/WebappList.js';
+import List from './src/List.js';
 
-window.customElements.define('webapp-list', WebappList);
+window.customElements.define('wal-list', List);

@@ -3,7 +3,7 @@ import { repeat } from 'lit-html/directives/repeat.js';
 
 import ItemCollection from './ItemCollection';
 
-export class WebappList extends LitElement {
+export default class List extends LitElement {
   static get styles() {
     return css`
       :host {
